@@ -2,119 +2,166 @@ package.cpath = package.cpath..";./?.dll;./?.so;../lib/?.so;../lib/vc_dll/?.dll;
 require("wx")
 require("LuaXML_lib")
 
-local m_frame = nil
-local m_draw = nil;		-- ç»˜åˆ¶ç”¨çš„panel
+local APP_DESCTION = ' ËµÃ÷: ¹¤¾ßÌá¹©¶Ôplist×ÊÔ´Í¼Æ¬µÄÒ»¸öÏÔÊ¾ºÍÑ¡Ôñ;\n' ..
+	'²Ù×÷:\n'..
+	'	´ò¿ª: Ñ¡ÔñplistÎÄ¼þ»òÕßÍ¼Æ¬ÎÄ¼þ»á°Ñplist½øÐÐ¼ÓÔØ\n'..
+	'	±£´æÑ¡ÔñµÄ¿é: Ö±½Ó°Ñµ±Ç°¿é±£³Öµ½Ö¸¶¨Ä¿Â¼ÖÐ\n'..
+	'	±£´æËùÓÐ: °ÑËùÓÐµÄ¿éÖ±½Ó±£´æµ½Ö¸¶¨Ä¿Â¼ÖÐ\n'..
+	'	¹Ø±Õ: Ö±½Ó¹Ø±ÕÓ¦ÓÃ\n'..
+	'	Í¼Æ¬¿é²Ù×÷:\n'..
+	'		Êó±ê×ó¼üµã»÷Í¼Æ¬¿éCtrl + C¸´ÖÆÍ¼Æ¬µÄÃû×Ö\n'..
+	'		»òÕßÊó±êÓÒ¼üµã»÷Í¼Æ¬Ò²¿ÉÒÔÖ±½Ó¸´ÖÆ\n'..
+	'	from: hcqmaker@gmail.com\n';
+	
+
+L ={
+	FILE = 'ÎÄ¼þ',
+	HELP = '°ïÖú',
+	TITLE = 'Plist²é¿´Æ÷',
+	OPEN = '´ò¿ª',
+	COPY = '¸´ÖÆ',
+	SAVE = '±£´æÑ¡Ôñ¿é',
+	SAVE_ALL = '±£´æËùÓÐ¿é',
+	EXIT = '¹Ø±Õ',
+	ABOUT = '¹ØÓÚ',
+	
+	
+	OPEN_DES = 'Ñ¡Ôñ´ò¿ªplist×ÊÔ´ÎÄ¼þ/Í¼Æ¬ÎÄ¼þ',
+	COPY_DES = '¸´ÖÆÑ¡ÔñµÄÍ¼Æ¬¿éµÄÃû×Ö',
+	EXIT_DES = '¹Ø±ÕÓ¦ÓÃ',
+	ABOUT_DES = '¹ØÓÚÓ¦ÓÃ',
+	SAVE_DES = '±£´æµ±Ç°Ñ¡ÖÐµÄÍ¼Æ¬¿é',
+	SAVE_ALL_DES = '±£´æËùÓÐÍ¼Æ¬¿é',
+	
+	FRAME_NAME = 'Í¼Æ¬¿éÃû×Ö',
+	
+	WIN_BOTTOM = '»¶Ó­Ê¹ÓÃPlist²é¿´Æ÷',
+	
+	SAVE_OPEN_PATH = 'Ñ¡Ôñ±£´æµÄÄ¿Â¼',
+	SAVE_SAME_FILE = 'ÓÐÏàÍ¬ÎÄ¼þÊÇ·ñ½øÐÐ±£´æ?',
+	SAVE_FILE = '±£´æÎÄ¼þ',
+	
+	ERR_UN_SELECT_FRAME = 'Ã»ÓÐÑ¡µ½Êý¾Ý¿â',
+	ERR_SAVE_FILE_FAIL = '±£´æÎÄ¼þÊ§°Ü',
+}
+
+--===================================
+-- ±äÁ¿²¿·Ö
+--===================================
+local m_window = nil
+local m_canvas = nil;		-- »æÖÆÓÃµÄpanel
 local m_listCtrl = nil;
 local m_scrollWin = nil;
 
-local m_img = nil;		-- å›¾ç‰‡
-local m_rect = nil;
+local m_select_img = nil;		-- Í¼Æ¬
+local m_select_rect = nil;
 
-local m_frame_list = nil;	-- æ•°æ®å—åˆ—è¡¨
+local m_plist_frame_t = nil;	-- Êý¾Ý¿éÁÐ±í
 local m_state_string = '';
 
 local m_frame_name = 'xxxx';
+local m_default_path = '';
 
-function OnPaint(event)
-	local dc = wx.wxPaintDC(m_draw)
-	if (m_img) then
-		dc:DrawBitmap(m_img, 0, 0, false)
-	end
-	if (m_rect) then
-		dc:SetPen(wx.wxPen(wx.wxColour(0,0,0,255), 3, wx.wxSOLID));
-		dc:SetBrush(wx.wxBrush(wx.wxColour(255,255,255,255), wx.wxTRANSPARENT));
-		dc:DrawRectangle(m_rect.x, m_rect.y, m_rect.w, m_rect.h);
-	end
-	dc:delete()
-end
-
-local function get_rect(str)
-	local ret = {};
-	string.gsub(str, "%w+", function(a)  table.insert(ret, a); end);
-	return {x = ret[1], y = ret[2], w = ret[3], h = ret[4]};
-end
-
-function OnOpenImage(event)
-	local plistfn = wx.wxFileSelector("Select plist file")
-    if ( not plistfn or plistfn == '' ) then
-        return
-    end
-	
-	local idx = string.find(plistfn, '.plist');
-	if (idx == nil) then
-		print("please select a plist and img in same path");
-		return;
-	end
-	
-	local imgfn = string.sub(plistfn, 1, idx)..'png';
-	local image = wx.wxImage()
-	if ( not image:LoadFile(imgfn) ) then
-        wx.wxLogError("Couldn't load image from '%s'.", imgfn)
-        return
-    end
-	
-	m_img = wx.wxBitmap(image);
-	local height = m_img:GetHeight();
-	local width = m_img:GetWidth();
-	m_draw:SetSize(width, height);
-	m_state_string = width.."x"..height.." ==>" ..imgfn;
-	m_frame:SetStatusText(m_state_string);
-	
-	-- åˆ†è§£æ•°æ®å’Œå—
-	local plist = xml.load(plistfn)
-	local plist_tag = plist[1]
-	local t = plist_tag[2];
-	local num = #t;
-	
-	m_frame_list = {};
-	local frame_name = nil;
-	local r = nil; 
-	for i = 1, num, 2 do
-		frame_name = t[i][1];
-		r = get_rect(t[i+1][2][1]);
-		local data = {frame=frame_name,x=tonumber(r.x),y=tonumber(r.y),w=tonumber(r.w),h=tonumber(r.h)};
-		table.insert(m_frame_list, data);
-	end
-	
-	-- æ›´æ–°æ•°æ®åˆ—è¡¨
-	m_listCtrl:ClearAll();
-	m_listCtrl:InsertColumn(0, "frame name")
-	m_listCtrl:SetColumnWidth(0, 200);
-	for i, d in ipairs(m_frame_list) do
-		m_listCtrl:InsertItem(i - 1, d.frame);
-	end
-	m_listCtrl:Refresh();
-end
-
-ID_OPEN_IMG = 1001;
+--========================================================
+-- ID±êÊ¶
+--========================================================
+ID_OPEN_IMG = 1001
+ID_SAVE_IMG = 1003
+ID_SAVE_ALL = 1004
 ID_LISTCTRL = 5001
 ID_SPLITTERWINDOW = 5002
 ID_PARENT_SCROLLEDWINDOW = 5003
 
---============================================================
---
-function AddControlList(parent)
-	local control = wx.wxListCtrl(parent, ID_LISTCTRL,
-                            wx.wxDefaultPosition, wx.wxSize(100, 200),
-                            wx.wxLC_REPORT)
-	control:InsertColumn(0, "frame name")
+--========================================================
+function OnPaint(event)
+	local dc = wx.wxPaintDC(m_canvas)
+	if (m_select_img) then
+		dc:DrawBitmap(m_select_img, 0, 0, false)
+	end
+	if (m_select_rect) then
+		dc:SetPen(wx.wxPen(wx.wxColour(0,0,0,255), 3, wx.wxSOLID));
+		dc:SetBrush(wx.wxBrush(wx.wxColour(255,255,255,255), wx.wxTRANSPARENT));
+		dc:DrawRectangle(m_select_rect.x, m_select_rect.y, m_select_rect.w, m_select_rect.h);
+	end
+	dc:delete()
+end
+--========================================================
+-- »ñÈ¡plistÖÐÒ»¸öÐÅÏ¢¿éµÄ¾ØÐÎÇøÓò
+local function parse_rect(str)
+	local ret = {};
+	string.gsub(str, "%w+", function(a)  table.insert(ret, a); end);
+	return {x = ret[1], y = ret[2], w = ret[3], h = ret[4]};
+end
+--========================================================
+function OnOpenFileDrawing(filename)
+	local plistfilename = nil;
+	local imagefilename = nil;
 	
+	if (string.find(filename, '.plist') ~= nil) then
+		local idx = string.find(filename, '.plist');
+		imagefilename = string.sub(filename, 1, idx)..'png';
+		plistfilename = filename;
+	elseif(string.find(filename, '.png') ~= nil) then
+		local idx = string.find(filename, '.png');
+		plistfilename = string.sub(filename, 1, idx)..'plist';
+		imagefilename = filename;
+	else
+		print("please select a plist and img in same path");
+		return;
+	end
 	
-	control:Connect(wx.wxEVT_COMMAND_LIST_ITEM_SELECTED , function(event)
-		local listCtrl = event:GetEventObject():DynamicCast("wxListCtrl")
-		for n = 1, listCtrl:GetItemCount() do
-            local s = listCtrl:GetItemState(n-1, wx.wxLIST_STATE_SELECTED)
-            if s ~= 0 then
-				local data = m_frame_list[n];
-				m_rect = data;
-				m_draw:Refresh();
-				m_frame:SetStatusText(m_state_string.."   "..data.frame);
-				m_frame_name = data.frame;
-				break;
-			end
+	-- ²éÑ¯»ñÈ¡±ØÒªµÄµ±Ç°ÎÄ¼þÂ·¾¶
+	local tmp = string.reverse(plistfilename);
+	local i = string.find(tmp, '/');
+	if (i == nil) then
+		i = string.find(tmp, '\\');
+	end
+	if (i) then
+		m_default_path = string.sub(plistfilename, 1, string.len(tmp) - i + 1);
+	end
+	
+	local image = wx.wxImage()
+	if ( not image:LoadFile(imagefilename) ) then
+        wx.wxLogError("Couldn't load image from '%s'.", imagefilename)
+        return
+    end
+	
+	m_select_img = wx.wxBitmap(image);
+	local height = m_select_img:GetHeight();
+	local width = m_select_img:GetWidth();
+	m_canvas:SetSize(width, height);
+	m_state_string = width.."x"..height.." ==>" ..imagefilename;
+	m_window:SetStatusText(m_state_string);
+	
+	-- ·Ö½âÊý¾ÝºÍ¿é
+	local plist = xml.load(plistfilename)
+	local plist_tag = plist[1]
+	local t = plist_tag[2];
+	local num = #t;
+	
+	m_plist_frame_t = {};
+	local frame_name = nil;
+	local r = nil; 
+	-- »ñÈ¡plistÎÄ¼þÖÐµÄËùÓÐÖ¡µÄÐÅÏ¢
+	for i = 1, num, 2 do
+		frame_name = t[i][1];
+		r = parse_rect(t[i+1][2][1]);
+		local data = {rt=false, frame=frame_name,x=tonumber(r.x),y=tonumber(r.y),w=tonumber(r.w),h=tonumber(r.h)};
+		if (t[i+1][6][0] == "true") then
+			data = {rt=true, frame=frame_name,x=tonumber(r.x),y=tonumber(r.y),w=tonumber(r.h),h=tonumber(r.w)};
 		end
-	end);
-	return control;
+		table.insert(m_plist_frame_t, data);
+	end
+	
+	-- ¸üÐÂÊý¾ÝÁÐ±í
+	m_listCtrl:ClearAll();
+	m_listCtrl:InsertColumn(0, "frame name")
+	m_listCtrl:SetColumnWidth(0, 200);
+	for i, d in ipairs(m_plist_frame_t) do
+		m_listCtrl:InsertItem(i - 1, d.frame);
+	end
+	m_listCtrl:Refresh();
+	m_canvas:Refresh();
 end
 --============================================================
 --
@@ -123,18 +170,23 @@ function OnLeftDown(event)
 		m_listCtrl:SetItemState(n - 1, n - 1, wx.wxLIST_STATE_DONTCARE);
 	end
 	
+	local is_need_refresh = false;
 	local x, y = event:GetPositionXY()
-	for i, d in ipairs(m_frame_list) do
+	for i, d in ipairs(m_plist_frame_t) do
 		if (d.x < x and d.x + d.w > x and d.y < y and d.y + d.h > y) then
-			m_rect = d;
-			m_draw:Refresh();
-			m_frame:SetStatusText(m_state_string.."   "..d.frame);
+			m_select_rect = d;
+			is_need_refresh = true;
+			m_window:SetStatusText(m_state_string.."   "..d.frame.."==>("..d.w.."x"..d.h..")");
 			m_frame_name = d.frame;
 			m_listCtrl:SetItemState(i - 1, i - 1, wx.wxLIST_STATE_SELECTED);
 		end
 	end
+	if (is_need_refresh) then
+		m_canvas:Refresh();
+	end
 end
 
+--========================================================
 function OnRightDown(event)
 	local clipBoard = wx.wxClipboard.Get()
     if clipBoard and clipBoard:Open() then
@@ -143,83 +195,166 @@ function OnRightDown(event)
     end
 end
 
---============================================================
---
-function AddControlDraw(parent)
-	--control = wx.wxSlider(scrollWin, ID_SLIDER, 10, 0, 100, wx.wxDefaultPosition, wx.wxSize(200, -1))
-	local scrollWin = wx.wxScrolledWindow(parent, ID_PARENT_SCROLLEDWINDOW,
-                                    wx.wxDefaultPosition, wx.wxDefaultSize,
-                                    wx.wxHSCROLL + wx.wxVSCROLL)
 
-    scrollWin:SetScrollbars(15, 15, 400, 1000, 0, 0, false)
-	
-	local panel = wx.wxPanel(scrollWin, wx.wxID_ANY)
-	panel:SetBackgroundColour(wx.wxColour(255, 100, 100));
-	panel:Connect(wx.wxEVT_PAINT, OnPaint)
-	return panel, scrollWin;
+local function open_find_dir(parent, filter_t)
+	local dir = nil;
+	local has_save = false;
+	while (dir == nil) do
+        dir = wx.wxDirSelector(L.SAVE_OPEN_PATH, "", wx.wxDD_DIR_MUST_EXIST, wx.wxDefaultPosition, parent)
+        if (dir == "") then
+            return dir;
+        end
+        dir = dir.."/"
+		local has_same = false;
+		for i, d in pairs(filter_t) do	
+			if (wx.wxFile.Exists(dir .. d)) then
+				has_same = true;
+				break;
+			end
+		end
+		has_save = true;
+		if (has_same) then -- ÓÐÏàÍ¬ÎÄ¼þÊÇ·ñ½øÐÐ±£´æ
+			local ret = wx.wxMessageBox(L.SAVE_SAME_FILE, L.SAVE_FILE,
+                            wx.wxOK + wx.wxICON_INFORMATION + wx.wxCENTRE,
+                            parent)
+			print(ret);
+			if (ret == wx.wxOK) then
+				has_save = true;
+			end
+		end
+    end
+	return dir, has_save;
+end
+--============================================================
+-- ¼àÌýÊÂ¼þ
+function event_close_handle(event) m_window:Close(true); end
+function event_open_handle(event)
+	local filename = wx.wxFileSelector("Select plist file", m_default_path)
+    if ( not filename or filename == '' ) then
+        return
+    end
+	OnOpenFileDrawing(filename);
+end
+function event_about_handle(event)
+	print(APP_DESCTION);
 end
 
-
---============================================================
---
-function OnAbout(event)
-		wx.wxMessageBox('This is the "About" dialog of the Minimal wxLua sample.\n'..
-						wxlua.wxLUA_VERSION_STRING.." built with "..wx.wxVERSION_STRING,
-						"About wxLua",
-						wx.wxOK + wx.wxICON_INFORMATION,
-						frame)
-end 
-
-function OnCopy(event)
+function event_copy_handle(event)
 	OnRightDown(event);
 end
 
+function event_save_handle(event)
+	if (m_select_rect == nil) then
+		print(L.ERR_UN_SELECT_FRAME);
+		return;
+	end
+	
+	local r = m_select_rect;
+	local name = r.frame;
+	local rotation = r.rt;
+	
+	local dir, b = open_find_dir(m_window, {name});
+	if (not b) then
+		return;
+	end
+	local img = m_select_img:GetSubBitmap(wx.wxRect(r.x, r.y, r.w, r.h));
+	if (rotation) then
+		img:Rotate(-90, wx.wxPoint(r.w / 2,r.h / 2), false, nil);
+		img:Resize(wx.wxSize(r.h, r.w), wx.wxPoint(r.w / 2, r.h / 2), -1, -1, -1);
+	end
+	if (not img:SaveFile( dir .. name, wx.wxBITMAP_TYPE_PNG)) then
+		wx.wxLogError(L.ERR_SAVE_FILE_FAIL);
+	end
+end
+
+function event_save_all_handle(event)
+	
+end
+
+function event_drop_file_handle(event)
+	local files = event:GetFiles();
+	local num = #files;
+	if (num > 0) then
+		local imgFile = files[1];
+		OnOpenFileDrawing(imgFile);
+	end
+end
+
+function event_list_item_selected_handle(event)
+	local listCtrl = event:GetEventObject():DynamicCast("wxListCtrl")
+	for i = 1, listCtrl:GetItemCount() do
+		local s = listCtrl:GetItemState(i - 1, wx.wxLIST_STATE_SELECTED)
+		if s ~= 0 then
+			local data = m_plist_frame_t[i];
+			m_select_rect = data;
+			m_canvas:Refresh();
+			m_window:SetStatusText(m_state_string.."   "..data.frame.."==>("..data.w.."x"..data.h..")");
+			m_frame_name = data.frame;
+			break;
+		end
+	end
+end
+
 --============================================================
 --
-function AddFrame()
-	local frame = wx.wxFrame( wx.NULL, wx.wxID_ANY,"wxLua Minimal Demo",wx.wxDefaultPosition,wx.wxSize(800, 600), wx.wxDEFAULT_FRAME_STYLE )
+function build_frame()
+	--=================================================
+	-- Ö÷Òª´°¿ÚÌí¼Ó
+	m_window = wx.wxFrame( wx.NULL, wx.wxID_ANY, L.TITLE, wx.wxDefaultPosition,wx.wxSize(800, 600), wx.wxDEFAULT_FRAME_STYLE )
+	m_window:DragAcceptFiles(true);	 -- ½ÓÊÜÍ¼Æ¬ÍÏ¶¯
+	
 	local fileMenu = wx.wxMenu()
 	local menuBar = wx.wxMenuBar()
     local helpMenu = wx.wxMenu()
 	
-	fileMenu:Append(ID_OPEN_IMG, "O&pen", "open image")
-	fileMenu:Append(wx.wxID_COPY, "Copy\tCtrl+C", "open image")
-	fileMenu:Append(wx.wxID_EXIT, "E&xit", "Quit the program")
-    helpMenu:Append(wx.wxID_ABOUT, "&About", "About the wxLua Minimal Application")
+	fileMenu:Append(ID_OPEN_IMG, 	L.OPEN.."\tCtrl+O", 	L.OPEN_DES)
+	fileMenu:Append(wx.wxID_COPY, 	L.COPY.."\tCtrl+C", 	L.COPY_DES)
+	fileMenu:Append(ID_SAVE_IMG, 	L.SAVE.."\tCtrl+S", 	L.SAVE_DES)
+	fileMenu:Append(ID_SAVE_ALL, 	L.SAVE_ALL.."\tShift+S", L.SAVE_ALL_DES)
+	fileMenu:Append(wx.wxID_EXIT, 	L.EXIT.."", 			L.EXIT_DES);
+    helpMenu:Append(wx.wxID_ABOUT, 	L.ABOUT.."", 			L.ABOUT_DES);
     
-	frame:Connect(wx.wxID_EXIT, wx.wxEVT_COMMAND_MENU_SELECTED, function (event) frame:Close(true) end )
-	frame:Connect(ID_OPEN_IMG, wx.wxEVT_COMMAND_MENU_SELECTED, OnOpenImage)
-	frame:Connect(wx.wxID_ABOUT, wx.wxEVT_COMMAND_MENU_SELECTED, OnAbout);
-	frame:Connect(wx.wxID_COPY, wx.wxEVT_COMMAND_MENU_SELECTED, OnCopy);
+	m_window:Connect(wx.wxID_EXIT, 	wx.wxEVT_COMMAND_MENU_SELECTED, event_close_handle)
+	m_window:Connect(ID_OPEN_IMG, 	wx.wxEVT_COMMAND_MENU_SELECTED, event_open_handle)
+	m_window:Connect(wx.wxID_ABOUT, wx.wxEVT_COMMAND_MENU_SELECTED, event_about_handle);
+	m_window:Connect(wx.wxID_COPY, 	wx.wxEVT_COMMAND_MENU_SELECTED, event_copy_handle);
+	m_window:Connect(ID_SAVE_IMG, 	wx.wxEVT_COMMAND_MENU_SELECTED, event_save_handle);
+	m_window:Connect(ID_SAVE_ALL, 	wx.wxEVT_COMMAND_MENU_SELECTED, event_save_all_handle);
 	
-    menuBar:Append(fileMenu, "&File")
-    menuBar:Append(helpMenu, "&Help")
+	m_window:Connect(wx.wxEVT_DROP_FILES, event_drop_file_handle);
 	
-    frame:SetMenuBar(menuBar)
-    frame:CreateStatusBar(1)
-    frame:SetStatusText("Welcome to wxLua.")
-	return frame;
-end
+    menuBar:Append(fileMenu, L.FILE)
+    menuBar:Append(helpMenu, L.HELP)
+	
+    m_window:SetMenuBar(menuBar)
+    m_window:CreateStatusBar(1)
+    m_window:SetStatusText(L.WIN_BOTTOM)
 
---============================================================
---
-function main()
-	m_frame = AddFrame();
-	
-	splitter = wx.wxSplitterWindow(m_frame, wx.wxID_ANY)
+	-- ===============================================
+	-- ·Ö¸îÁ½±ß½çÃæ:×ó±ßÊÇ»æÍ¼ÇøÓò, ÓÒ±ßÊÇÒ»¸öÁÐ±íÇøÓò
+	local splitter = wx.wxSplitterWindow(m_window, wx.wxID_ANY)
     splitter:SetMinimumPaneSize(50)
     splitter:SetSashGravity(.8)
+	--=================
+	-- ×ó±ßÇøÓò
+	m_scrollWin = wx.wxScrolledWindow(splitter, ID_PARENT_SCROLLEDWINDOW, wx.wxDefaultPosition, wx.wxDefaultSize, wx.wxHSCROLL + wx.wxVSCROLL)
+    m_scrollWin:SetScrollbars(15, 15, 400, 1000, 0, 0, false)
 	
-	m_draw,m_scrollWin = AddControlDraw(splitter);
-	m_listCtrl = AddControlList(splitter);
-	
-	m_draw:Connect(wx.wxEVT_LEFT_DOWN, OnLeftDown )
-	m_draw:Connect(wx.wxEVT_RIGHT_DOWN, OnRightDown )
-	
-	
-	splitter:SplitVertically(m_scrollWin,m_listCtrl,500)
-    m_frame:Show(true)
+	m_canvas = wx.wxPanel(m_scrollWin, wx.wxID_ANY)
+	m_canvas:SetBackgroundColour(wx.wxColour(255, 100, 100));
+	m_canvas:Connect(wx.wxEVT_PAINT, OnPaint)
+	--=================
+	-- ÓÒ±ßÇøÓò
+	m_listCtrl = wx.wxListCtrl(splitter, ID_LISTCTRL, wx.wxDefaultPosition, wx.wxSize(100, 200), wx.wxLC_REPORT)
+	m_listCtrl:InsertColumn(0, L.FRAME_NAME)
+	m_listCtrl:Connect(wx.wxEVT_COMMAND_LIST_ITEM_SELECTED , event_list_item_selected_handle);
+	--=================
+	m_canvas:Connect(wx.wxEVT_LEFT_DOWN, OnLeftDown )
+	m_canvas:Connect(wx.wxEVT_RIGHT_DOWN, OnRightDown )
+
+	splitter:SplitVertically(m_scrollWin, m_listCtrl,500)
+    m_window:Show(true)
 end
 
-main()
+build_frame()
 wx.wxGetApp():MainLoop()
