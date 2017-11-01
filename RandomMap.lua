@@ -132,7 +132,7 @@ function printmap()
 			if (tr ~= TILE_FLOOR) then
 				if (tr >= 100) then
 					local ni = math.floor(tr / 100);
-					str = str .. markn[ni]
+					str = str .. ".";--markn[ni]
 				else
 					if (tr > n) then
 						tr = n;
@@ -273,7 +273,8 @@ end
 function tmain()
 	-- 60 20 40 5 2 40
 	-- 60 40 40 5 2 40
-	local argv = {60,20,40,5,2,10};
+	--local argv = {60,20,40,5,2,10};
+	local argv = {150,40,40,5,2,10};
 	local argc = table.maxn(argv) + 1;
 	size_x = argv[1];
 	size_y = argv[2];
