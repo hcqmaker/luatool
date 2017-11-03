@@ -274,7 +274,7 @@ function tmain()
 	-- 60 20 40 5 2 40
 	-- 60 40 40 5 2 40
 	--local argv = {60,20,40,5,2,10};
-	local argv = {150,40,40,5,2,10};
+	local argv = {150,60,40,5,2,10};
 	local argc = table.maxn(argv) + 1;
 	size_x = argv[1];
 	size_y = argv[2];
