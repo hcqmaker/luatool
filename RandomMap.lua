@@ -122,7 +122,7 @@ local function printfunc()
 end
 
 function printmap()
-	local markn = {".","*","-","+","#","@","&"};
+	local markn = {".","*","-","+","~","@","&"};
 	local rs = {"A","B","C","E","F","G","H","I","J","K","L","N","M","O","P","Q","R","S","T"};
 	local n = #rs;
 	for yi = 1,size_y do
@@ -130,9 +130,12 @@ function printmap()
 		for xi = 1,size_x do
 			local tr = grid[yi][xi];
 			if (tr ~= TILE_FLOOR) then
-				if (tr >= 100) then
+				if (tr >= 1000) then
+					str = str .. "#";
+				elseif (tr >= 100) then
 					local ni = math.floor(tr / 100);
-					str = str .. ".";--markn[ni]
+					--str = str .. ".";--markn[ni]
+					str = str .. markn[ni]
 				else
 					if (tr > n) then
 						tr = n;
@@ -162,7 +165,6 @@ function FindOneEmptyNode(filter)
 	end
 	return -1,-1;
 end
-
 
 local Area_t = {
 	{-1,0},
@@ -207,27 +209,56 @@ end
 
 function LinkTwoArea(r1, r2)
 	-- 随便选择两个点直接强制进行连接
+	-- 得到一条路线
+
+	-- 找到最短的两个点进行连接
+	local minlen = 100;
+	local n1 = nil;
+	local n2 = nil;
+
+	for i,v in ipairs(r1) do
+		for j,nv in ipairs(r2) do
+			local ln = math.abs(nv.x - v.x)  + math.abs(nv.y - v.y);
+			if (ln < minlen) then
+				n1 = v;
+				n2 = nv;
+				minlen = ln;
+			end
+		end
+	end
+
+	--[[
 	local i1 = math.floor(math.random() * 100 % #r1 + 1);
 	local i2 = math.floor(math.random() * 100 % #r2 + 1);
 
 	local n1 = r1[i1];
 	local n2 = r2[i2];
+	--]]
 
 	print("===>("..n1.x..","..n1.y..")=>("..n2.x..","..n2.y..")");
+	local r = {};
+
 	local step = 1;
 	if (n1.x > n2.x) then
 		step = -1;
 	end
 	for i = n1.x, n2.x, step do
-		grid[n1.y][i] = 0;
+		if (grid[n1.y][i] ~= 0) then
+			table.insert(r, {x=i,y=n1.y});
+			grid[n1.y][i] = 1000;
+		end
 	end
 	step = 1;
 	if (n1.y > n2.y) then
 		step = -1;
 	end
 	for j = n1.y,n2.y, step do
-		grid[j][n2.x] = 0;
+		if (grid[j][n2.x] ~= 0) then
+			table.insert(r, {x=n2.x,y=j});
+			grid[j][n2.x] = 1000;
+		end
 	end
+	return r;
 end
 
 function SearchLinkArea()
@@ -259,9 +290,8 @@ function SearchLinkArea()
 		for i = 1, #rt - 1 do
 			local area1 = rt[i];
 			local area2 = rt[i+1];
-			LinkTwoArea(area1, area2);
+			local linkPath = LinkTwoArea(area1, area2);
 		end
-
 	else
 		print("====>has one area");
 	end
@@ -274,7 +304,7 @@ function tmain()
 	-- 60 20 40 5 2 40
 	-- 60 40 40 5 2 40
 	--local argv = {60,20,40,5,2,10};
-	local argv = {150,60,40,5,2,10};
+	local argv = {100,40,40,5,2,10};
 	local argc = table.maxn(argv) + 1;
 	size_x = argv[1];
 	size_y = argv[2];
